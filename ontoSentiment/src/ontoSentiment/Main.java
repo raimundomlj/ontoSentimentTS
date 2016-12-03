@@ -1,6 +1,8 @@
 package ontoSentiment;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -14,18 +16,53 @@ import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
 import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import edu.stanford.nlp.sentiment.Evaluate;
+import edu.stanford.nlp.sentiment.RNNOptions;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations.SentimentAnnotatedTree;
+import edu.stanford.nlp.sentiment.SentimentModel;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
 import twitter4j.Query;
 import twitter4j.QueryResult;
 import twitter4j.Status;
+import twitter4j.Twitter;
 
 public class Main {
 
 	public static void main(String[] args) {
+		//runUsingDatabase();
+		runTwitterOnline();
+	}
+	
+	public static void runUsingDatabase(){
+		String csvFile = "C:/Users/Raimundo/Desktop/sanders-twitter-0.2/corpus.csv";
+        String line = "";
+        String cvsSplitBy = ",";
+        String fileName = "C:/Users/Raimundo/Desktop/sanders-twitter-0.2/corpus2.csv";
+
+        FileWriter fileWriter =null; 
+        Twitter twitter = Util.getTwitter();
+        Status status = null;       
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+        	fileWriter = new FileWriter(fileName);
+            while ((line = br.readLine()) != null) {
+            	
+                String[] text = line.split(cvsSplitBy);
+                
+                status = twitter.showStatus(Long.parseLong(text[2]));        
+                System.out.println("code= " + text[2]+" text= "+status.getText()+" label="+text[1]);                
+                fileWriter.append(text[2]+","+status.getText()+","+text[1]);
+                Thread.sleep(5000);
+            }
+            fileWriter.flush();
+            fileWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+	}
+	 public static void runTwitterOnline() {
 		try {
-			String busca = "Accenture"; 
+			String busca = "Pizza"; 
 			String lang = "en";
 			
 			ArrayList<String> tweets = new ArrayList<>();
@@ -35,7 +72,7 @@ public class Main {
 			
 			Date actualDate = new Date();
 			
-			FileWriter arquivo = new FileWriter(new File("C:/Users/raimundo.martins/Desktop/resultadoOntoSentiment.txt"));
+			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/resultadoOntoSentiment.txt"));
 			
 			int totalTweets = 0;
 	        long maxID = -1;			
@@ -54,9 +91,7 @@ public class Main {
 	                totalTweets++;
 	                if (maxID == -1 || s.getId() < maxID) {
 	                    maxID = s.getId();
-	                }
-	                //System.out.printf("O tweet de id %s disse as %s, @%-20s disse: %s\n", new Long(s.getId()).toString(), s.getCreatedAt().toString(), s.getUser().getScreenName(), Util.cleanText(s.getText()));
-	                //System.out.println(Util.cleanText(s.getText()));
+	                }	    
 	                
 	                if(!format.format(actualDate).equals(format.format(s.getCreatedAt()))){
                 		actualDate = s.getCreatedAt();
@@ -89,16 +124,19 @@ public class Main {
 	                System.out.println("Data tweets: "+format.format(actualDate));
 	                Util.imprimirRateLimit(Util.RATE_LIMIT_OPTION_SEARCH_TWEETS);
 	            }
-	        } while (q != null);
-	          //while (totalTweets <= 2900);
+	        } //while (q != null ;
+	          while (totalTweets <= 4900);
 			
 	        Properties props = new Properties();
 	        //props.setProperty("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref, sentiment");
 	        props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");	        
 			StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
 	        
-	        ArrayList<String> sentiments = new ArrayList<>();	        
+	        ArrayList<String> sentiments = new ArrayList<>();
+	        List<Tree> analise = new ArrayList<>();
+	        List<Tree> train = new ArrayList<>();
 	        //System.out.println("Tamanho hash: "+tweetsPerDay.size());
+	               
 			if(!tweetsPerDay.isEmpty()){
 				tweetsPerDay.forEach((key, value)->{
 					String dataAnalisada = format.format(key);
@@ -115,12 +153,12 @@ public class Main {
 						List<CoreMap> sentences = document.get(SentencesAnnotation.class);
 						
 						for(CoreMap sentence : sentences){
-							Tree tree = sentence.get(SentimentAnnotatedTree.class);
-							int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
-							sentiments.add(Util.sentimentParserString(sentiment));		
+							Tree tree = sentence.get(SentimentAnnotatedTree.class);							
+							int sentiment = RNNCoreAnnotations.getPredictedClass(tree);							
+							sentiments.add(Util.sentimentParserString(sentiment));
+
 						}						
-						String sentimentAnalyzed = Util.defineSentiment(sentiments);
-						//System.out.println("     Sentimento: "+sentimentAnalyzed);
+						String sentimentAnalyzed = Util.defineSentiment(sentiments);					
 						
 						if(sentimentAnalyzed.equals("negative"))
 							negatives++;
@@ -140,7 +178,7 @@ public class Main {
 						arquivo.write("data: "+dataAnalisada+" tweets coletados:"+value.size()+"\n");
 						arquivo.write("Total Positives: "+positives+"\n");
 						arquivo.write("Total Negatives: "+negatives+"\n");			
-						arquivo.write("Total Neutral: "+neutral+"\n\n");
+						arquivo.write("Total Neutral: "+neutral+"\n\n");						
 						arquivo.flush();
 					} catch (Exception e) {					
 						e.printStackTrace();
@@ -148,8 +186,7 @@ public class Main {
 					System.out.println("\n\nTotal Positives: "+positives);
 					System.out.println("Total Negatives: "+negatives);			
 					System.out.println("Total Neutral: "+neutral);
-				});
-				arquivo.write("\n\n\n\n Max Id: "+maxID);
+				});				
 				arquivo.close();
 			}
 			
