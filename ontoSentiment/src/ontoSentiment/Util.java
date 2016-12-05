@@ -149,31 +149,4 @@ public class Util {
     	else
     		return "neutral";
     }
-    
-    public static void runUsingDatabase() {
-		String csvFile = "C:/Users/Raimundo/Desktop/sanders-twitter-0.2/corpus.csv";
-		String line = "";
-		String cvsSplitBy = ",";
-		String fileName = "C:/Users/Raimundo/Desktop/sanders-twitter-0.2/corpus2.csv";
-
-		FileWriter fileWriter = null;
-		Twitter twitter = Util.getTwitter();
-		Status status = null;
-		try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
-			fileWriter = new FileWriter(fileName);
-			while ((line = br.readLine()) != null) {
-
-				String[] text = line.split(cvsSplitBy);
-
-				status = twitter.showStatus(Long.parseLong(text[2]));
-				System.out.println("code= " + text[2] + " text= " + status.getText() + " label=" + text[1]);
-				fileWriter.append(text[2] + "," + status.getText() + "," + text[1]);
-				Thread.sleep(5000);
-			}
-			fileWriter.flush();
-			fileWriter.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
 }

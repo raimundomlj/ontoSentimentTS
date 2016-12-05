@@ -1,6 +1,8 @@
 package ontoSentiment;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -17,7 +19,6 @@ import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.sparql.serializer.SerializationContext;
@@ -41,32 +42,132 @@ public class Main {
 
 	public static void main(String[] args) {
 		runTwitterOnline();
+		// runUsingDatabase();
+	}
+
+	public static void runUsingDatabase() {
+		String csvFile = "C:/Users/Raimundo/Desktop/data_twitter_formated.csv";
+		String line = "";
+		String cvsSplitBy = ";";
+
+		try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+			FileWriter arquivo = new FileWriter(
+					new File("C:/Users/Raimundo/Desktop/resultadoOntoSentimentBaseOntologie.txt"));
+			Properties props = new Properties();
+			props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
+			StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
+			ArrayList<String> sentiments = new ArrayList<>();
+
+			String ontologieFilePath = "src/data/pizza.owl.rdf";
+			String prefix = "prefix pizza: <http://www.co-ode.org/ontologies/pizza/pizza.owl#>\n" + "prefix rdfs: <"
+					+ RDFS.getURI() + ">\n" + "prefix owl: <" + OWL.getURI() + ">\n";
+			// String textQuery = "SELECT ?pizza WHERE {?pizza a owl:Class ; " +
+			// " rdfs:subClassOf ?restriction.\n"
+			// + " ?restriction owl:onProperty pizza:hasTopping ;"+
+			// " owl:someValuesFrom pizza:PeperoniSausageTopping " +
+			// " owl:someValuesFrom pizza:GorgonzolaTopping" +
+			// "}";
+
+			String textQuery = "SELECT ?class WHERE { ?class  a  owl:Class }";
+
+			List<String> resultsOfOntologie = loadOntologie(ontologieFilePath, prefix, textQuery);
+
+			int qtd = 0;
+			int negatives = 0;
+			int positives = 0;
+			int neutral = 0;
+			int acertos = 0;
+			int erros = 0;
+
+			while ((line = br.readLine()) != null) {
+				String[] text = line.split(cvsSplitBy);
+				System.out.println("Analisando: " + text[0]);
+				Annotation document = new Annotation(text[0]);
+				pipeline.annotate(document);
+
+				List<CoreMap> sentences = document.get(SentencesAnnotation.class);
+
+				for (String onto : resultsOfOntologie) {
+					if (text[0].contains(onto)) {
+						for (CoreMap sentence : sentences) {
+							Tree tree = sentence.get(SentimentAnnotatedTree.class);
+							int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
+							sentiments.add(Util.sentimentParserString(sentiment));
+
+						}
+						String sentimentAnalyzed = Util.defineSentiment(sentiments);
+						try {
+							if (sentimentAnalyzed.equals("negative")) {
+								negatives++;
+								System.out.println("     negativo");
+							}
+							if (sentimentAnalyzed.equals("positive")) {
+								positives++;
+								System.out.println("     positivo");
+							}
+							if (sentimentAnalyzed.equals("neutral")) {
+								neutral++;
+								System.out.println("     neutro");
+							}
+
+							if (sentimentAnalyzed.equals(text[1])) {
+								acertos++;
+								System.out.println("     correto: sim");
+							} else {
+								erros++;
+								System.out.println("     correto: não");
+							}
+							sentiments.clear();
+							qtd++;
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				}
+
+			}
+			try {
+				arquivo.write("Tweets Analisados " + qtd + "\n");
+				arquivo.write("Total Positives: " + positives + "\n");
+				arquivo.write("Total Negatives: " + negatives + "\n");
+				arquivo.write("Total Neutral: " + neutral + "\n");
+				arquivo.write("Total Acertos: " + acertos + "\n");
+				arquivo.write("Total Erros: " + erros + "\n");
+				arquivo.write("Acuracia: " + (double) acertos / ((double) (acertos + erros)));
+				arquivo.flush();
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			arquivo.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static void runTwitterOnline() {
 		try {
-			String busca = "Pizza";
+			String busca = "Papa John's";
 			String lang = "en";
 
-			//String ontologieFilePath = "src/data/pizza.owl.rdf";
-			//String prefix = "prefix pizza: <http://www.co-ode.org/ontologies/pizza/pizza.owl#>\n" + "prefix rdfs: <"
-				//	+ RDFS.getURI() + ">\n" + "prefix owl: <" + OWL.getURI() + ">\n";
-			//String textQuery = "SELECT ?pizza WHERE {?pizza a owl:Class ; " + 
-					//" rdfs:subClassOf ?restriction.\n"
-					//+ " ?restriction owl:onProperty pizza:hasTopping ;"+
-					 //" owl:someValuesFrom pizza:PeperoniSausageTopping " +
-					 //" owl:someValuesFrom pizza:GorgonzolaTopping" +
-				//	"}";
-			
-			//String textQuery = "SELECT ?class WHERE { ?class  a  owl:Class }";
-			
+			String ontologieFilePath = "src/data/pizza.owl.rdf";
+			String prefix = "prefix pizza: <http://www.co-ode.org/ontologies/pizza/pizza.owl#>\n" + "prefix rdfs: <"
+					+ RDFS.getURI() + ">\n" + "prefix owl: <" + OWL.getURI() + ">\n";
+			// String textQuery = "SELECT ?pizza WHERE {?pizza a owl:Class ; " +
+			// " rdfs:subClassOf ?restriction.\n"
+			// + " ?restriction owl:onProperty pizza:hasTopping ;"+
+			// " owl:someValuesFrom pizza:PeperoniSausageTopping " +
+			// " owl:someValuesFrom pizza:GorgonzolaTopping" +
+			// "}";
 
-			//List<String> resultsOfOntologie = loadOntologie(ontologieFilePath, prefix, textQuery);
+			String textQuery = "SELECT ?class WHERE { ?class a owl:Class }";
+
+			List<String> resultsOfOntologie = loadOntologie(ontologieFilePath, prefix, textQuery);
 
 			Map<Date, ArrayList<String>> tweetsPerDay = getTweets(busca, lang);
 
-			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/resultadoOntoSentiment.txt"));
-			//FileWriter arquivoClassificado = new FileWriter(new File("C:/Users/Raimundo/Desktop/tweets.csv"));
+			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/resultadoOntoSentimentOnline.txt"));
+			FileWriter arquivoClassificado = new FileWriter(new File("C:/Users/Raimundo/Desktop/tweets.csv"));
 			SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 			Properties props = new Properties();
 			// props.setProperty("annotators", "tokenize, ssplit, pos, lemma,
@@ -84,9 +185,9 @@ public class Main {
 					int positives = 0;
 					int neutral = 0;
 
-					for (String text : value) {						
-						//for (String onto : resultsOfOntologie) {
-							//if (text.contains(onto)) {								
+					for (String text : value) {
+						for (String onto : resultsOfOntologie) {
+							if (text.contains(onto)) {
 								Annotation document = new Annotation(text);
 								pipeline.annotate(document);
 
@@ -99,21 +200,21 @@ public class Main {
 
 								}
 								String sentimentAnalyzed = Util.defineSentiment(sentiments);
-								try{
-									if (sentimentAnalyzed.equals("negative")){
+								try {
+									if (sentimentAnalyzed.equals("negative")) {
 										negatives++;
-										//arquivoClassificado.write("'"+text+"';'"+onto+"';'negative'\n");
-										//arquivoClassificado.write("'"+text+"';'negative'\n");
+										 arquivoClassificado.write("'"+text+"';'"+onto+"';'negative'\n");
+										//arquivoClassificado.write("'" + text + "';'negative'\n");
 									}
-									if (sentimentAnalyzed.equals("positive")){
+									if (sentimentAnalyzed.equals("positive")) {
 										positives++;
-										//arquivoClassificado.write("'"+text+";'"+onto+"';positive'\n");
-										//arquivoClassificado.write("'"+text+";'positive'\n");
+										 arquivoClassificado.write("'"+text+";'"+onto+"';positive'\n");
+										//arquivoClassificado.write("'" + text + ";'positive'\n");
 									}
-									if (sentimentAnalyzed.equals("neutral")){
+									if (sentimentAnalyzed.equals("neutral")) {
 										neutral++;
-										//arquivoClassificado.write("'"+text+"';'"+onto+"';neutral'\n");
-										//arquivoClassificado.write("'"+text+"';'neutral'\n");
+										 arquivoClassificado.write("'"+text+"';'"+onto+"';neutral'\n");
+										//arquivoClassificado.write("'" + text + "';'neutral'\n");
 									}
 									sentiments.clear();
 									qtd++;
@@ -122,24 +223,21 @@ public class Main {
 									}
 									System.out.println("\n" + ((qtd * 100) / value.size())
 											+ "% de tweets analisados para a data: " + dataAnalisada + "\n");
-								}catch(Exception e) {
+								} catch (Exception e) {
 									e.printStackTrace();
 								}
-							//}
-						//}
+							}
+						}
 
 					}
 					try {
-						arquivo.write("data: " + dataAnalisada + 
-								" tweets analisados "+qtd+
-								" tweets coletados:" + value.size() + 
-								" % de: " + (qtd * 100) / value.size() +"% do todo "+
-								"\n");
+						arquivo.write("data: " + dataAnalisada + " tweets analisados " + qtd + " tweets coletados:"
+								+ value.size() + " % de: " + (qtd * 100) / value.size() + "% do todo " + "\n");
 						arquivo.write("Total Positives: " + positives + "\n");
 						arquivo.write("Total Negatives: " + negatives + "\n");
 						arquivo.write("Total Neutral: " + neutral + "\n\n");
 						arquivo.flush();
-						//arquivoClassificado.flush();
+						arquivoClassificado.flush();
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -148,7 +246,7 @@ public class Main {
 					System.out.println("Total Neutral: " + neutral);
 				});
 				arquivo.close();
-				//arquivoClassificado.close();
+				arquivoClassificado.close();
 			}
 
 		} catch (Exception e) {
@@ -168,20 +266,20 @@ public class Main {
 		QueryExecution qexec = QueryExecutionFactory.create(query, m);
 		try {
 			ResultSet results = qexec.execSelect();
-			//ResultSetFormatter.out( results, m );
+			// ResultSetFormatter.out( results, m );
 			String result;
-			while(results.hasNext()){
+			while (results.hasNext()) {
 				QuerySolution rBind = results.nextSolution();
 				RDFNode obj = rBind.get(results.getResultVars().get(0));
-				try{
+				try {
 					result = FmtUtils.stringForRDFNode(obj, new SerializationContext()).split("#")[1].split(">")[0];
-					if(!retorno.contains(result))
+					if (!retorno.contains(result))
 						retorno.add(result);
-				}catch(Exception e){
+				} catch (Exception e) {
 					continue;
 				}
 			}
-			//retorno.remove("Pizza");
+			// retorno.remove("Pizza");
 			retorno.remove("Thing");
 			return retorno;
 
@@ -206,7 +304,7 @@ public class Main {
 			q.setMaxId(maxID);
 			// q.setSince("2016-01-01");
 			// q.setUntil(format.format(actualDate));
-			//q.setUntil("2016-11-22");
+			// q.setUntil("2016-11-29");
 			q.setLang(lang);
 			q.setLocale(lang);
 			QueryResult r = Util.getTwitter().search(q);
