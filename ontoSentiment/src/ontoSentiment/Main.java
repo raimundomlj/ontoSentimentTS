@@ -2,9 +2,11 @@ package ontoSentiment;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -33,16 +35,27 @@ import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations.SentimentAnnotatedTree;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
+import opennlp.tools.doccat.DoccatModel;
+import opennlp.tools.doccat.DocumentCategorizerME;
+import opennlp.tools.doccat.DocumentSampleStream;
+import opennlp.tools.util.ObjectStream;
+import opennlp.tools.util.PlainTextByLineStream;
 import twitter4j.Query;
 import twitter4j.QueryResult;
 import twitter4j.Status;
 
 public class Main {
 
+	private static DoccatModel model;
+	
 	public static void main(String[] args) throws IOException {
 		//runTwitterOnline();
 		//runUsingDatabase();
-		//classifyReadFile("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+		
+		//classifyReadFile("C:/Users/raimundo.martins/Desktop/tweets_modificados.csv");
+		
+		//trainAndClassifyWithOpenNLP("C:/Users/raimundo.martins/Desktop/tweets_modificados.csv");
+		
 		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied.csv");
 	}
 	
@@ -51,19 +64,91 @@ public class Main {
 		String line = "";
 		String cvsSplitBy = ";";
 		
-		int qtdCertos = 0;
-		int qtdErros = 0;
+		int qtdCertosCore = 0;
+		int qtdErrosCore = 0;
+		int qtdCertosOpen = 0;
+		int qtdErrosOpen = 0;
 		while ((line = br.readLine()) != null) {	
 			String[] text = line.split(cvsSplitBy);
 			
 			if(text[2].equalsIgnoreCase(text[3]))
-				qtdCertos++;
+				qtdCertosCore++;
 			else
-				qtdErros++;
+				qtdErrosCore++;
+			
+			if(text[2].equalsIgnoreCase(text[4]))
+				qtdCertosOpen++;
+			else
+				qtdErrosOpen++;
 		}
-		System.out.println("Acertos: "+qtdCertos);
-		System.out.println("Erros: "+qtdErros);
-		System.out.println((qtdCertos*100)/(qtdCertos+qtdErros)+"% de acerto");
+		System.out.println("Acertos Core: "+qtdCertosCore);
+		System.out.println("Erros Core: "+qtdErrosCore);
+		System.out.println((qtdCertosCore*100)/(qtdCertosCore+qtdErrosCore)+"% de acerto Core\n");
+		
+		System.out.println("Acertos Open: "+qtdCertosOpen);
+		System.out.println("Erros Open: "+qtdErrosOpen);
+		System.out.println((qtdCertosOpen*100)/(qtdCertosOpen+qtdErrosOpen)+"% de acerto Open\n");
+	}
+	
+	public static void classifyTweetReadFileWithOpenNLP(String file) throws IOException {        
+		
+		DocumentCategorizerME myCategorizer = new DocumentCategorizerME(model);
+		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
+		TweetTraduzido tt;
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = "";
+		String cvsSplitBy = ";";
+		while ((line = br.readLine()) != null) {	
+			String[] text = line.split(cvsSplitBy);			
+			String category = myCategorizer.getBestCategory(myCategorizer.categorize(text[1]));
+			System.out.print("-----------------------------------------------------\nTWEET :" + text[1] + " ===> ");
+			tt = new TweetTraduzido();
+			tt.setPt(text[0]);
+			//tt.setEnGoogle(text[1]);
+			if (category.equalsIgnoreCase("1")) {
+				System.out.println(" POSITIVE ");
+				tt.setClassifiedGoogle("positive");
+			} 
+			else if (category.equalsIgnoreCase("0")){
+				System.out.println(" NEUTRAL ");
+				tt.setClassifiedGoogle("neutral");
+			}
+			else {
+				System.out.println(" NEGATIVE ");
+				tt.setClassifiedGoogle("negative");            
+			}
+			
+			tweetsTraduzidos.add(tt);			
+		}
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base",tweetsTraduzidos);
+		print.start();
+		br.close();
+
+    }
+	
+	public static void trainAndClassifyWithOpenNLP(String file){		
+		  InputStream dataIn = null;
+	        try {
+	            dataIn = new FileInputStream("C:/Users/raimundo.martins/Desktop/tweets.txt");
+	            ObjectStream lineStream = new PlainTextByLineStream(dataIn, "UTF-8");
+	            ObjectStream sampleStream = new DocumentSampleStream(lineStream);
+	            // Specifies the minimum number of times a feature must be seen
+	            int cutoff = 2;
+	            int trainingIterations = 30;
+	            model = DocumentCategorizerME.train("en", sampleStream, cutoff,
+	                    trainingIterations);
+	        } catch (IOException e) {
+	            e.printStackTrace();
+	        } finally {
+	            if (dataIn != null) {
+	                try {
+	                    dataIn.close();
+	                    classifyTweetReadFileWithOpenNLP(file);
+	                } catch (IOException e) {
+	                    e.printStackTrace();
+	                }
+	            }
+	        }
 	}
 	
 	public static void classifyReadFile(String file) throws IOException{
@@ -87,7 +172,7 @@ public class Main {
 			if(qtd%100 == 0)
 				System.out.println("Processando: "+qtd);
 			
-			Annotation document = new Annotation(text[1]);
+			Annotation document = new Annotation(text[0]);
 			pipeline.annotate(document);
 
 			List<CoreMap> sentences = document.get(SentencesAnnotation.class);			
@@ -114,7 +199,7 @@ public class Main {
 			
 			tt = new TweetTraduzido();
 			tt.setPt(text[0]);
-			tt.setEnGoogle(text[1]);
+			tt.setEnGoogle(text[2]);
 			//tt.setEnYandex(text[2]);
 			tt.setClassifiedGoogle(sentimentAnalyzedGoogle);
 			//tt.setClassifiedYandex(sentimentAnalyzedYandex);
@@ -122,7 +207,7 @@ public class Main {
 			tweetsTraduzidos.add(tt);
 			qtd++;
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied",tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base",tweetsTraduzidos);
 		print.start();
 		br.close();
 	}
