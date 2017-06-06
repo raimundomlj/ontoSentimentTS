@@ -42,8 +42,8 @@ public class Main {
 	public static void main(String[] args) throws IOException {
 		//runTwitterOnline();
 		//runUsingDatabase();
-		//classifyReadFile("C:/Users/raimundo.martins/Desktop/correios_all.csv");
-		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/correios_all_classified2.csv");
+		//classifyReadFile("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied.csv");
 	}
 	
 	public static void runMetricsFromFile(String file) throws IOException{
@@ -56,13 +56,14 @@ public class Main {
 		while ((line = br.readLine()) != null) {	
 			String[] text = line.split(cvsSplitBy);
 			
-			if(text[3].equalsIgnoreCase(text[4]))
+			if(text[2].equalsIgnoreCase(text[3]))
 				qtdCertos++;
 			else
 				qtdErros++;
 		}
 		System.out.println("Acertos: "+qtdCertos);
 		System.out.println("Erros: "+qtdErros);
+		System.out.println((qtdCertos*100)/(qtdCertos+qtdErros)+"% de acerto");
 	}
 	
 	public static void classifyReadFile(String file) throws IOException{
@@ -73,9 +74,9 @@ public class Main {
 		Properties props = new Properties();
 		props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
 		StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
-		StanfordCoreNLP pipeline2 = new StanfordCoreNLP(props);
+		//StanfordCoreNLP pipeline2 = new StanfordCoreNLP(props);
 		ArrayList<String> sentimentsGoogle = new ArrayList<>();
-		ArrayList<String> sentimentsYandex = new ArrayList<>();
+		//ArrayList<String> sentimentsYandex = new ArrayList<>();
 		
 		TweetTraduzido tt;
 		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
@@ -99,29 +100,29 @@ public class Main {
 			String sentimentAnalyzedGoogle = Util.defineSentiment(sentimentsGoogle);
 			
 			
-			Annotation document2 = new Annotation(text[2]);
-			pipeline2.annotate(document2);
-
-			List<CoreMap> sentences2 = document2.get(SentencesAnnotation.class);			
-			for (CoreMap sentence2 : sentences2) {
-				Tree tree2 = sentence2.get(SentimentAnnotatedTree.class);
-				int sentiment2 = RNNCoreAnnotations.getPredictedClass(tree2);
-				sentimentsYandex.add(Util.sentimentParserString(sentiment2));
-
-			}
-			String sentimentAnalyzedYandex = Util.defineSentiment(sentimentsYandex);
+//			Annotation document2 = new Annotation(text[2]);
+//			pipeline2.annotate(document2);
+//
+//			List<CoreMap> sentences2 = document2.get(SentencesAnnotation.class);			
+//			for (CoreMap sentence2 : sentences2) {
+//				Tree tree2 = sentence2.get(SentimentAnnotatedTree.class);
+//				int sentiment2 = RNNCoreAnnotations.getPredictedClass(tree2);
+//				sentimentsYandex.add(Util.sentimentParserString(sentiment2));
+//
+//			}
+//			String sentimentAnalyzedYandex = Util.defineSentiment(sentimentsYandex);
 			
 			tt = new TweetTraduzido();
 			tt.setPt(text[0]);
 			tt.setEnGoogle(text[1]);
-			tt.setEnYandex(text[2]);
+			//tt.setEnYandex(text[2]);
 			tt.setClassifiedGoogle(sentimentAnalyzedGoogle);
-			tt.setClassifiedYandex(sentimentAnalyzedYandex);
+			//tt.setClassifiedYandex(sentimentAnalyzedYandex);
 			
 			tweetsTraduzidos.add(tt);
 			qtd++;
 		}
-		ImprimeArquivo print = new ImprimeArquivo("correios_all_classified2",tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("classyfied",tweetsTraduzidos);
 		print.start();
 		br.close();
 	}
