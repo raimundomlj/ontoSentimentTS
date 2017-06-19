@@ -3,6 +3,7 @@ package ontoSentiment;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -28,6 +29,14 @@ import org.apache.jena.sparql.serializer.SerializationContext;
 import org.apache.jena.sparql.util.FmtUtils;
 import org.apache.jena.util.FileManager;
 
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.NaturalLanguageUnderstanding;
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.AnalysisResults;
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.AnalyzeOptions;
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.EntitiesOptions;
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.Features;
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.KeywordsOptions;
+import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.SentimentOptions;
+
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
 import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
 import edu.stanford.nlp.pipeline.Annotation;
@@ -47,135 +56,211 @@ import twitter4j.Status;
 public class Main {
 
 	private static DoccatModel model;
-	
+
 	public static void main(String[] args) throws IOException {
-		//runTwitterOnline();
-		//runUsingDatabase();
-		
-		//classifyReadFile("C:/Users/raimundo.martins/Desktop/tweets_modificados.csv");
-		
-		//trainAndClassifyWithOpenNLP("C:/Users/raimundo.martins/Desktop/tweets_modificados.csv");
+		// runTwitterOnline();
+		// runUsingDatabase();
+
+		loadLexico("C:/Users/raimundo.martins/Desktop/lexico_v3.0.txt");
+		//classifyCoreNLP("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+
+		//trainAndClassifyWithOpenNLP("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+
+		//pt
+		//watsonClassify("C:/Users/raimundo.martins/Desktop/to_classify.csv", true);
+		//en
+		//watsonClassify("C:/Users/raimundo.martins/Desktop/to_classify.csv", false);
 		
 		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied.csv");
+		
 	}
 	
-	public static void runMetricsFromFile(String file) throws IOException{
+	public static void loadLexico(String file) throws FileNotFoundException{
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = "";
+		String cvsSplitBy = ",";
+	}
+
+	public static void runMetricsFromFile(String file) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String line = "";
 		String cvsSplitBy = ";";
-		
+
 		int qtdCertosCore = 0;
 		int qtdErrosCore = 0;
 		int qtdCertosOpen = 0;
 		int qtdErrosOpen = 0;
-		while ((line = br.readLine()) != null) {	
+		int qtdCertosWatsonPT = 0;
+		int qtdErrosWatsonPT = 0;
+		int qtdCertosWatsonEN = 0;
+		int qtdErrosWatsonEN = 0;
+		while ((line = br.readLine()) != null) {
 			String[] text = line.split(cvsSplitBy);
-			
-			if(text[2].equalsIgnoreCase(text[3]))
+
+			if (text[2].equalsIgnoreCase(text[3]))
 				qtdCertosCore++;
 			else
 				qtdErrosCore++;
-			
-			if(text[2].equalsIgnoreCase(text[4]))
+
+			if (text[2].equalsIgnoreCase(text[4]))
 				qtdCertosOpen++;
 			else
 				qtdErrosOpen++;
+			
+			if (text[2].equalsIgnoreCase(text[5]))
+				qtdCertosWatsonPT++;
+			else
+				qtdErrosWatsonPT++;
+			
+			if (text[2].equalsIgnoreCase(text[6]))
+				qtdCertosWatsonEN++;
+			else
+				qtdErrosWatsonEN++;
 		}
-		System.out.println("Acertos Core: "+qtdCertosCore);
-		System.out.println("Erros Core: "+qtdErrosCore);
-		System.out.println((qtdCertosCore*100)/(qtdCertosCore+qtdErrosCore)+"% de acerto Core\n");
+		System.out.println("Acertos Core: " + qtdCertosCore);
+		System.out.println("Erros Core: " + qtdErrosCore);
+		System.out.println((qtdCertosCore * 100) / (qtdCertosCore + qtdErrosCore) + "% de acerto Core\n");
+
+		System.out.println("Acertos Open: " + qtdCertosOpen);
+		System.out.println("Erros Open: " + qtdErrosOpen);
+		System.out.println((qtdCertosOpen * 100) / (qtdCertosOpen + qtdErrosOpen) + "% de acerto Open\n");
 		
-		System.out.println("Acertos Open: "+qtdCertosOpen);
-		System.out.println("Erros Open: "+qtdErrosOpen);
-		System.out.println((qtdCertosOpen*100)/(qtdCertosOpen+qtdErrosOpen)+"% de acerto Open\n");
+		System.out.println("Acertos Open: " + qtdCertosWatsonPT);
+		System.out.println("Erros Open: " + qtdErrosWatsonPT);
+		System.out.println((qtdCertosWatsonPT * 100) / (qtdCertosWatsonPT + qtdErrosWatsonPT) + "% de acerto Watson PT\n");
+		
+		System.out.println("Acertos Open: " + qtdCertosWatsonEN);
+		System.out.println("Erros Open: " + qtdErrosWatsonEN);
+		System.out.println((qtdCertosWatsonEN * 100) / (qtdCertosWatsonEN + qtdErrosWatsonEN) + "% de acerto Watson EN\n");		
 	}
-	
-	public static void classifyTweetReadFileWithOpenNLP(String file) throws IOException {        
-		
+
+	public static void watsonClassify(String file, boolean pt) throws IOException {
+		NaturalLanguageUnderstanding service = new NaturalLanguageUnderstanding(
+				NaturalLanguageUnderstanding.VERSION_DATE_2017_02_27, "a347ecc2-54eb-4739-86b6-a045ae281fda",
+				"W3o4I7htiZsa");
+
+		SentimentOptions sentiment = new SentimentOptions.Builder().build();
+
+		Features features = new Features.Builder().sentiment(sentiment).build();
+
+		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
+		TweetTraduzido tt;
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = "";
+		String cvsSplitBy = ";";
+		int index = 1;
+		if(pt)
+			index = 0;
+		while ((line = br.readLine()) != null) {
+			String[] text = line.split(cvsSplitBy);
+			AnalyzeOptions parameters = new AnalyzeOptions.Builder().text(text[index]).features(features).build();
+			AnalysisResults response = service.analyze(parameters).execute();
+			
+			tt = new TweetTraduzido();
+			tt.setPt(text[0]);
+			// tt.setEnGoogle(text[1]);
+			if (response.getSentiment().getDocument().getScore() > 0) {
+				System.out.println(" POSITIVE ");
+				tt.setClassifiedGoogle("positive");
+			} else if (response.getSentiment().getDocument().getScore() < 0) {
+				System.out.println(" NEGATIVE ");
+				tt.setClassifiedGoogle("negative");
+			} else {
+				System.out.println(" NEUTRAL ");
+				tt.setClassifiedGoogle("neutral");
+			}
+
+			tweetsTraduzidos.add(tt);
+		}
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		print.start();
+		br.close();
+
+	}
+
+	public static void classifyTweetReadFileWithOpenNLP(String file) throws IOException {
+
 		DocumentCategorizerME myCategorizer = new DocumentCategorizerME(model);
 		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
 		TweetTraduzido tt;
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String line = "";
 		String cvsSplitBy = ";";
-		while ((line = br.readLine()) != null) {	
-			String[] text = line.split(cvsSplitBy);			
+		while ((line = br.readLine()) != null) {
+			String[] text = line.split(cvsSplitBy);
 			String category = myCategorizer.getBestCategory(myCategorizer.categorize(text[1]));
 			System.out.print("-----------------------------------------------------\nTWEET :" + text[1] + " ===> ");
 			tt = new TweetTraduzido();
 			tt.setPt(text[0]);
-			//tt.setEnGoogle(text[1]);
+			// tt.setEnGoogle(text[1]);
 			if (category.equalsIgnoreCase("1")) {
 				System.out.println(" POSITIVE ");
 				tt.setClassifiedGoogle("positive");
-			} 
-			else if (category.equalsIgnoreCase("0")){
+			} else if (category.equalsIgnoreCase("0")) {
 				System.out.println(" NEUTRAL ");
 				tt.setClassifiedGoogle("neutral");
-			}
-			else {
+			} else {
 				System.out.println(" NEGATIVE ");
-				tt.setClassifiedGoogle("negative");            
+				tt.setClassifiedGoogle("negative");
 			}
-			
-			tweetsTraduzidos.add(tt);			
+
+			tweetsTraduzidos.add(tt);
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base",tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
 		print.start();
 		br.close();
 
-    }
-	
-	public static void trainAndClassifyWithOpenNLP(String file){		
-		  InputStream dataIn = null;
-	        try {
-	            dataIn = new FileInputStream("C:/Users/raimundo.martins/Desktop/tweets.txt");
-	            ObjectStream lineStream = new PlainTextByLineStream(dataIn, "UTF-8");
-	            ObjectStream sampleStream = new DocumentSampleStream(lineStream);
-	            // Specifies the minimum number of times a feature must be seen
-	            int cutoff = 2;
-	            int trainingIterations = 30;
-	            model = DocumentCategorizerME.train("en", sampleStream, cutoff,
-	                    trainingIterations);
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        } finally {
-	            if (dataIn != null) {
-	                try {
-	                    dataIn.close();
-	                    classifyTweetReadFileWithOpenNLP(file);
-	                } catch (IOException e) {
-	                    e.printStackTrace();
-	                }
-	            }
-	        }
 	}
-	
-	public static void classifyReadFile(String file) throws IOException{
+
+	public static void trainAndClassifyWithOpenNLP(String file) {
+		InputStream dataIn = null;
+		try {
+			dataIn = new FileInputStream("C:/Users/raimundo.martins/Desktop/tweets.txt");
+			ObjectStream lineStream = new PlainTextByLineStream(dataIn, "UTF-8");
+			ObjectStream sampleStream = new DocumentSampleStream(lineStream);
+			// Specifies the minimum number of times a feature must be seen
+			int cutoff = 2;
+			int trainingIterations = 30;
+			model = DocumentCategorizerME.train("en", sampleStream, cutoff, trainingIterations);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (dataIn != null) {
+				try {
+					dataIn.close();
+					classifyTweetReadFileWithOpenNLP(file);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	public static void classifyCoreNLP(String file) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String line = "";
 		String cvsSplitBy = ";";
-		
+
 		Properties props = new Properties();
 		props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
 		StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
-		//StanfordCoreNLP pipeline2 = new StanfordCoreNLP(props);
+		// StanfordCoreNLP pipeline2 = new StanfordCoreNLP(props);
 		ArrayList<String> sentimentsGoogle = new ArrayList<>();
-		//ArrayList<String> sentimentsYandex = new ArrayList<>();
-		
+		// ArrayList<String> sentimentsYandex = new ArrayList<>();
+
 		TweetTraduzido tt;
 		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
-		
+
 		int qtd = 1;
-		while ((line = br.readLine()) != null) {	
+		while ((line = br.readLine()) != null) {
 			String[] text = line.split(cvsSplitBy);
-			if(qtd%100 == 0)
-				System.out.println("Processando: "+qtd);
-			
+			//if (qtd % 100 == 0)
+			System.out.println("Processando: " + qtd);
+
 			Annotation document = new Annotation(text[0]);
 			pipeline.annotate(document);
 
-			List<CoreMap> sentences = document.get(SentencesAnnotation.class);			
+			List<CoreMap> sentences = document.get(SentencesAnnotation.class);
 			for (CoreMap sentence : sentences) {
 				Tree tree = sentence.get(SentimentAnnotatedTree.class);
 				int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
@@ -183,31 +268,32 @@ public class Main {
 
 			}
 			String sentimentAnalyzedGoogle = Util.defineSentiment(sentimentsGoogle);
-			
-			
-//			Annotation document2 = new Annotation(text[2]);
-//			pipeline2.annotate(document2);
-//
-//			List<CoreMap> sentences2 = document2.get(SentencesAnnotation.class);			
-//			for (CoreMap sentence2 : sentences2) {
-//				Tree tree2 = sentence2.get(SentimentAnnotatedTree.class);
-//				int sentiment2 = RNNCoreAnnotations.getPredictedClass(tree2);
-//				sentimentsYandex.add(Util.sentimentParserString(sentiment2));
-//
-//			}
-//			String sentimentAnalyzedYandex = Util.defineSentiment(sentimentsYandex);
-			
+
+			// Annotation document2 = new Annotation(text[2]);
+			// pipeline2.annotate(document2);
+			//
+			// List<CoreMap> sentences2 =
+			// document2.get(SentencesAnnotation.class);
+			// for (CoreMap sentence2 : sentences2) {
+			// Tree tree2 = sentence2.get(SentimentAnnotatedTree.class);
+			// int sentiment2 = RNNCoreAnnotations.getPredictedClass(tree2);
+			// sentimentsYandex.add(Util.sentimentParserString(sentiment2));
+			//
+			// }
+			// String sentimentAnalyzedYandex =
+			// Util.defineSentiment(sentimentsYandex);
+
 			tt = new TweetTraduzido();
 			tt.setPt(text[0]);
-			tt.setEnGoogle(text[2]);
-			//tt.setEnYandex(text[2]);
+			//tt.setEnGoogle(text[2]);
+			// tt.setEnYandex(text[2]);
 			tt.setClassifiedGoogle(sentimentAnalyzedGoogle);
-			//tt.setClassifiedYandex(sentimentAnalyzedYandex);
-			
+			// tt.setClassifiedYandex(sentimentAnalyzedYandex);
+
 			tweetsTraduzidos.add(tt);
 			qtd++;
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base",tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
 		print.start();
 		br.close();
 	}
@@ -322,8 +408,8 @@ public class Main {
 				System.out.print("Total Neutral: " + neutral + "\n");
 				System.out.print("Total Acertos: " + acertos + "\n");
 				System.out.print("Total Erros: " + erros + "\n");
-				System.out.print("Falsos Positivos: " + fp+ "\n");
-				System.out.print("Falsos Negativos: " + fn+ "\n");
+				System.out.print("Falsos Positivos: " + fp + "\n");
+				System.out.print("Falsos Negativos: " + fn + "\n");
 				System.out.print("Acuracia: " + (double) acertos / ((double) (acertos + erros)));
 
 			} catch (Exception e) {
@@ -339,41 +425,57 @@ public class Main {
 		String busca = "Wine";
 		String lang = "en";
 
-		/*String ontologieFilePathCam = "src/data/camera.owl";
-		String prefixCam = "prefix camera: <http://www.xfront.com/owl/ontologies/camera/#>\n" + "prefix rdfs: <"
-				+ RDFS.getURI() + ">\n" + "prefix owl: <" + OWL.getURI() + ">\n";
-		String textQueryCam = "SELECT ?class WHERE { ?class a owl:Class }";
-		List<String> resultsOfOntologieCam = loadOntologie(ontologieFilePathCam, prefixCam, textQueryCam);*/
+		/*
+		 * String ontologieFilePathCam = "src/data/camera.owl"; String prefixCam
+		 * = "prefix camera: <http://www.xfront.com/owl/ontologies/camera/#>\n"
+		 * + "prefix rdfs: <" + RDFS.getURI() + ">\n" + "prefix owl: <" +
+		 * OWL.getURI() + ">\n"; String textQueryCam =
+		 * "SELECT ?class WHERE { ?class a owl:Class }"; List<String>
+		 * resultsOfOntologieCam = loadOntologie(ontologieFilePathCam,
+		 * prefixCam, textQueryCam);
+		 */
 
-		/*String ontologieFilePathPizza = "src/data/pizza.owl.rdf";
-		 String prefixPizza = "prefix pizza: <http://www.co-ode.org/ontologies/pizza/pizza.owl#>\n" + "prefix rdfs: <"
-		 	+ RDFS.getURI() + ">\n" + "prefix owl: <" + OWL.getURI() +">\n";		
+		/*
+		 * String ontologieFilePathPizza = "src/data/pizza.owl.rdf"; String
+		 * prefixPizza =
+		 * "prefix pizza: <http://www.co-ode.org/ontologies/pizza/pizza.owl#>\n"
+		 * + "prefix rdfs: <" + RDFS.getURI() + ">\n" + "prefix owl: <" +
+		 * OWL.getURI() +">\n";
+		 * 
+		 * String textQueryPizza = "SELECT ?class WHERE { ?class a owl:Class }";
+		 * 
+		 * List<String> resultsOfOntologiePizza =
+		 * loadOntologie(ontologieFilePathPizza, prefixPizza, textQueryPizza);
+		 */
 
-		String textQueryPizza = "SELECT ?class WHERE { ?class a owl:Class }";
+		/*
+		 * String ontologieFilePathWine = "src/data/wine.rdf"; String prefixWine
+		 * =
+		 * "prefix vin: <http://www.w3.org/TR/2003/PR-owl-guide-20031209/wine#>\n"
+		 * + "prefix rdfs: <" + RDFS.getURI() + ">\n" + "prefix owl: <" +
+		 * OWL.getURI() + ">\n";
+		 * 
+		 * String textQueryWine = "SELECT ?class WHERE { ?class a owl:Class }";
+		 * 
+		 * List<String> resultsOfOntologieWine =
+		 * loadOntologie(ontologieFilePathWine, prefixWine, textQueryWine);
+		 */
 
-		List<String> resultsOfOntologiePizza = loadOntologie(ontologieFilePathPizza, prefixPizza, textQueryPizza);*/
-
-		/*String ontologieFilePathWine = "src/data/wine.rdf";
-		String prefixWine = "prefix vin: <http://www.w3.org/TR/2003/PR-owl-guide-20031209/wine#>\n" + "prefix rdfs: <"
-				+ RDFS.getURI() + ">\n" + "prefix owl: <" + OWL.getURI() + ">\n";
-		
-		String textQueryWine = "SELECT ?class WHERE { ?class a owl:Class }";
-		
-		List<String> resultsOfOntologieWine = loadOntologie(ontologieFilePathWine, prefixWine, textQueryWine);*/
-		
 		Map<Date, ArrayList<String>> tweetsPerDay = getTweets(busca, lang);
-		
+
 		runWithoutOntologie(tweetsPerDay, "resultsOntologiesOnline_wine", "tweets_wine");
-		//runWithOntologie(tweetsPerDay, "resultsOntologiesOnline_wine", "tweets_wine", resultsOfOntologieWine);
-		
+		// runWithOntologie(tweetsPerDay, "resultsOntologiesOnline_wine",
+		// "tweets_wine", resultsOfOntologieWine);
 
 	}
 
-	public static void runWithoutOntologie(Map<Date, ArrayList<String>> tweetsPerDay, String nameFile, String nameClassified) {
+	public static void runWithoutOntologie(Map<Date, ArrayList<String>> tweetsPerDay, String nameFile,
+			String nameClassified) {
 		try {
 
-			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/"+nameFile+".txt"));
-			FileWriter arquivoClassificado = new FileWriter(new File("C:/Users/Raimundo/Desktop/"+nameClassified+".csv"));
+			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/" + nameFile + ".txt"));
+			FileWriter arquivoClassificado = new FileWriter(
+					new File("C:/Users/Raimundo/Desktop/" + nameClassified + ".csv"));
 			SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 			Properties props = new Properties();
 			props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
@@ -454,11 +556,13 @@ public class Main {
 		}
 	}
 
-	public static void runWithOntologie(Map<Date, ArrayList<String>> tweetsPerDay, String nameFile, String nameClassified, List<String> resultsOfOntologie) {
+	public static void runWithOntologie(Map<Date, ArrayList<String>> tweetsPerDay, String nameFile,
+			String nameClassified, List<String> resultsOfOntologie) {
 		try {
 
-			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/"+nameFile+".txt"));
-			FileWriter arquivoClassificado = new FileWriter(new File("C:/Users/Raimundo/Desktop/"+nameClassified+".csv"));
+			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/" + nameFile + ".txt"));
+			FileWriter arquivoClassificado = new FileWriter(
+					new File("C:/Users/Raimundo/Desktop/" + nameClassified + ".csv"));
 			SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 			Properties props = new Properties();
 			props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
@@ -632,8 +736,8 @@ public class Main {
 					System.out.println("Data tweets: " + format.format(actualDate));
 					Util.imprimirRateLimit(Util.RATE_LIMIT_OPTION_SEARCH_TWEETS);
 				}
-			} //while (q != null);
-			 while (totalTweets <= 9900);
+			} // while (q != null);
+			while (totalTweets <= 9900);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
