@@ -56,12 +56,12 @@ import twitter4j.Status;
 public class Main {
 
 	private static DoccatModel model;
+	private static ArrayList<ItensLexico> lexico;
 
 	public static void main(String[] args) throws IOException {
 		// runTwitterOnline();
-		// runUsingDatabase();
-
-		loadLexico("C:/Users/raimundo.martins/Desktop/lexico_v3.0.txt");
+		// runUsingDatabase();		
+		
 		//classifyCoreNLP("C:/Users/raimundo.martins/Desktop/to_classify.csv");
 
 		//trainAndClassifyWithOpenNLP("C:/Users/raimundo.martins/Desktop/to_classify.csv");
@@ -71,52 +71,96 @@ public class Main {
 		//en
 		//watsonClassify("C:/Users/raimundo.martins/Desktop/to_classify.csv", false);
 		
-		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied.csv");
+		//loadLexico("C:/Users/raimundo.martins/Desktop/lexico_v3.0.txt");
+		//classifyByLexico("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+		
+		//majorityVoteAndTieBreaker("C:/Users/raimundo.martins/Desktop/classyfied_real.csv");
+		
+		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied_real.csv");
 		
 	}
 	
-	public static void loadLexico(String file) throws FileNotFoundException{
-		BufferedReader br = new BufferedReader(new FileReader(file));
-		String line = "";
-		String cvsSplitBy = ",";
-	}
-
 	public static void runMetricsFromFile(String file) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String line = "";
 		String cvsSplitBy = ";";
+		
+		int qtdPositiveManual = 0;
+		int qtdNeutralManual = 0;
+		int qtdNegativeManual = 0;
 
 		int qtdCertosCore = 0;
 		int qtdErrosCore = 0;
+		
 		int qtdCertosOpen = 0;
 		int qtdErrosOpen = 0;
+		
 		int qtdCertosWatsonPT = 0;
 		int qtdErrosWatsonPT = 0;
+		
 		int qtdCertosWatsonEN = 0;
 		int qtdErrosWatsonEN = 0;
+		
+		int qtdCertoLexico = 0;
+		int qtdErrosLexico = 0;
+		
+		int qtdCertosMajority = 0;
+		int qtdErrosMajority = 0;
+		int qtdTie = 0;
+		
 		while ((line = br.readLine()) != null) {
 			String[] text = line.split(cvsSplitBy);
+			
+			if(text[2].equals("positive"))
+				qtdPositiveManual++;
+			if(text[2].equals("neutral"))
+				qtdNeutralManual++;
+			if(text[2].equals("negative"))
+				qtdNegativeManual++;
 
+			//CoreNLP
 			if (text[2].equalsIgnoreCase(text[3]))
 				qtdCertosCore++;
 			else
 				qtdErrosCore++;
 
+			//OpenNLP
 			if (text[2].equalsIgnoreCase(text[4]))
 				qtdCertosOpen++;
 			else
 				qtdErrosOpen++;
 			
+			//WatsonPT
 			if (text[2].equalsIgnoreCase(text[5]))
 				qtdCertosWatsonPT++;
 			else
 				qtdErrosWatsonPT++;
 			
+			//WatsonEN
 			if (text[2].equalsIgnoreCase(text[6]))
 				qtdCertosWatsonEN++;
 			else
 				qtdErrosWatsonEN++;
+			
+			//Lexico
+			if (text[2].equalsIgnoreCase(text[7]))
+				qtdCertoLexico++;
+			else
+				qtdErrosLexico++;
+			
+			//Majority Vote
+			if (text[2].equalsIgnoreCase(text[8]))
+				qtdCertosMajority++;
+			else
+				qtdErrosMajority++;
+			
+			if(text[9].equals("tie"))
+				qtdTie++;
 		}
+		br.close();
+		
+		System.out.println("Classificação manual\nPositive: "+qtdPositiveManual+"\nNeutral: "+qtdNeutralManual+"\nNegative: "+qtdNegativeManual+"\n");
+		
 		System.out.println("Acertos Core: " + qtdCertosCore);
 		System.out.println("Erros Core: " + qtdErrosCore);
 		System.out.println((qtdCertosCore * 100) / (qtdCertosCore + qtdErrosCore) + "% de acerto Core\n");
@@ -125,14 +169,144 @@ public class Main {
 		System.out.println("Erros Open: " + qtdErrosOpen);
 		System.out.println((qtdCertosOpen * 100) / (qtdCertosOpen + qtdErrosOpen) + "% de acerto Open\n");
 		
-		System.out.println("Acertos Open: " + qtdCertosWatsonPT);
-		System.out.println("Erros Open: " + qtdErrosWatsonPT);
+		System.out.println("Acertos Watson PT: " + qtdCertosWatsonPT);
+		System.out.println("Erros Watson PT: " + qtdErrosWatsonPT);
 		System.out.println((qtdCertosWatsonPT * 100) / (qtdCertosWatsonPT + qtdErrosWatsonPT) + "% de acerto Watson PT\n");
 		
-		System.out.println("Acertos Open: " + qtdCertosWatsonEN);
-		System.out.println("Erros Open: " + qtdErrosWatsonEN);
+		System.out.println("Acertos Watson EN: " + qtdCertosWatsonEN);
+		System.out.println("Erros Watson EN: " + qtdErrosWatsonEN);
 		System.out.println((qtdCertosWatsonEN * 100) / (qtdCertosWatsonEN + qtdErrosWatsonEN) + "% de acerto Watson EN\n");		
+		
+		System.out.println("Acertos Lexico: " + qtdCertoLexico);
+		System.out.println("Erros Lexico: " + qtdErrosLexico);
+		System.out.println((qtdCertoLexico * 100) / (qtdCertoLexico + qtdErrosLexico) + "% de acerto Lexico\n");	
+		
+		System.out.println("Acertos Lexico: " + qtdCertosMajority);
+		System.out.println("Erros Lexico: " + qtdErrosMajority);
+		System.out.println("Quantidade empates: "+qtdTie);
+		System.out.println((qtdCertosMajority * 100) / (qtdCertosMajority + qtdErrosMajority) + "% de acerto Majority\n");
 	}
+	
+	public static void majorityVoteAndTieBreaker(String file) throws IOException{
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = "";
+		String cvsSplitBy = ";";
+		
+		int qtdPositive = 0;
+		int qtdNeutral = 0;
+		int qtdNegative = 0;
+		
+		TweetTraduzido tt;
+		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
+		
+		while ((line = br.readLine()) != null) {
+			String[] text = line.split(cvsSplitBy);
+			tt = new TweetTraduzido();
+			tt.setPt(text[0]);
+			for(int i = 3; i <=7;i++){
+				switch(text[i]){
+					case "positive" :
+						qtdPositive++;
+						break;
+					case "neutral" : 
+						qtdNeutral++;
+						break;
+					case "negative" :
+						qtdNegative++;
+						break;
+				}
+			}
+			
+			if(qtdPositive >=3)
+				tt.setClassifiedGoogle("positive");
+			else if(qtdNegative >= 3)
+				tt.setClassifiedGoogle("negative");
+			else if(qtdNeutral >=3)
+				tt.setClassifiedGoogle("neutral");
+			else{
+				tt.setClassifiedGoogle(text[5]);
+				tt.setClassifiedYandex("tie");
+			}
+			
+			tweetsTraduzidos.add(tt);
+			
+			qtdPositive = 0;
+			qtdNeutral = 0;
+			qtdNegative = 0;
+		}		
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		print.start();
+		br.close();
+		System.out.println("Arquivo impresso!");
+	}
+	
+	public static void classifyByLexico(String file) throws IOException{		
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = "";
+		String cvsSplitBy = ";";
+		TweetTraduzido tt;
+		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
+		while ((line = br.readLine()) != null) {
+			String[] text = line.split(cvsSplitBy);
+			String[] frase = text[0].split(" ");
+			int pontos = 0;
+			for(String p : frase){
+				pontos += pontuacaoPalavra(p);
+			}
+			System.out.println("Pontos: "+pontos);
+			tt = new TweetTraduzido();
+			tt.setPt(text[0]);
+			// tt.setEnGoogle(text[1]);
+			if (pontos > 0) {
+				System.out.println(" POSITIVE ");
+				tt.setClassifiedGoogle("positive");
+			} else if (pontos < 0) {
+				System.out.println(" NEGATIVE ");
+				tt.setClassifiedGoogle("negative");
+			} else {
+				System.out.println(" NEUTRAL ");
+				tt.setClassifiedGoogle("neutral");
+			}
+
+			tweetsTraduzidos.add(tt);
+		}
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		print.start();
+		br.close();
+		
+	}
+	
+	public static int pontuacaoPalavra(String palavra){
+		
+		for(ItensLexico il : lexico){
+			if(il.getPalavra().equalsIgnoreCase(palavra))
+				return Integer.parseInt(il.getPontos());
+		}
+		return 0;
+		
+	}
+	
+	public static void loadLexico(String file) throws IOException{
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = "";
+		String cvsSplitBy = ",";
+		lexico = new ArrayList<>(); 
+		while ((line = br.readLine()) != null) {
+			String[] text = line.split(cvsSplitBy);
+			
+			ItensLexico item = new ItensLexico(); 
+			item.setPalavra(text[0]);
+			item.setClassificacao(text[1]);
+			item.setPontos(text[2]);
+			item.setModo(text[3]);
+			
+			lexico.add(item);			
+		}
+		
+		br.close();
+	}
+
+	
 
 	public static void watsonClassify(String file, boolean pt) throws IOException {
 		NaturalLanguageUnderstanding service = new NaturalLanguageUnderstanding(
