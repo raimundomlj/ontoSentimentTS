@@ -37,10 +37,12 @@ import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.Fe
 import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.KeywordsOptions;
 import com.ibm.watson.developer_cloud.natural_language_understanding.v1.model.SentimentOptions;
 
+import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
 import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations.SentimentAnnotatedTree;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
@@ -59,24 +61,24 @@ public class Main {
 	private static ArrayList<ItensLexico> lexico;
 
 	public static void main(String[] args) throws IOException {
-		// runTwitterOnline();
+		// runTwitterOnline("produtos", "pt");
 		// runUsingDatabase();		
 		
-		//classifyCoreNLP("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+		//classifyCoreNLP("C:/Users/raimundo.martins/Desktop/bases/classyfied_real.csv");
 
-		//trainAndClassifyWithOpenNLP("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+		//trainAndClassifyWithOpenNLP("C:/Users/raimundo.martins/Desktop/to_pt_3.csv");
 
 		//pt
-		//watsonClassify("C:/Users/raimundo.martins/Desktop/to_classify.csv", true);
+		watsonClassify("C:/Users/raimundo.martins/Desktop/to_pt.csv", true);
 		//en
-		//watsonClassify("C:/Users/raimundo.martins/Desktop/to_classify.csv", false);
+		//watsonClassify("C:/Users/raimundo.martins/Desktop/to_en.csv", false);
 		
 		//loadLexico("C:/Users/raimundo.martins/Desktop/lexico_v3.0.txt");
-		//classifyByLexico("C:/Users/raimundo.martins/Desktop/to_classify.csv");
+		//classifyByLexico("C:/Users/raimundo.martins/Desktop/to_pt_3.csv");
 		
-		//majorityVoteAndTieBreaker("C:/Users/raimundo.martins/Desktop/classyfied_real.csv");
+		//majorityVoteAndTieBreaker("C:/Users/raimundo.martins/Desktop/bases/classyfied_real.csv");
 		
-		runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied_real.csv");
+		//runMetricsFromFile("C:/Users/raimundo.martins/Desktop/classyfied_real.csv");
 		
 	}
 	
@@ -91,22 +93,34 @@ public class Main {
 
 		int qtdCertosCore = 0;
 		int qtdErrosCore = 0;
+		int fpCore = 0;
+		int fnCore = 0;
 		
 		int qtdCertosOpen = 0;
 		int qtdErrosOpen = 0;
+		int fpOpen = 0;
+		int fnOpen = 0;
 		
 		int qtdCertosWatsonPT = 0;
 		int qtdErrosWatsonPT = 0;
+		int fpWPT = 0;
+		int fnWPT = 0;
 		
 		int qtdCertosWatsonEN = 0;
 		int qtdErrosWatsonEN = 0;
+		int fpWEN = 0;
+		int fnWEN = 0;
 		
 		int qtdCertoLexico = 0;
 		int qtdErrosLexico = 0;
+		int fpLex = 0;
+		int fnLex = 0;
 		
 		int qtdCertosMajority = 0;
 		int qtdErrosMajority = 0;
 		int qtdTie = 0;
+		int fpMaj = 0;
+		int fnMaj = 0;
 		
 		while ((line = br.readLine()) != null) {
 			String[] text = line.split(cvsSplitBy);
@@ -121,38 +135,68 @@ public class Main {
 			//CoreNLP
 			if (text[2].equalsIgnoreCase(text[3]))
 				qtdCertosCore++;
-			else
+			else{
 				qtdErrosCore++;
+				if(text[2].equalsIgnoreCase("positive"))
+					fnCore++;
+				else
+					fpCore++;
+			}
 
 			//OpenNLP
 			if (text[2].equalsIgnoreCase(text[4]))
 				qtdCertosOpen++;
-			else
+			else{
 				qtdErrosOpen++;
+				if(text[2].equalsIgnoreCase("positive"))
+					fnOpen++;
+				else
+					fpOpen++;
+			}
 			
 			//WatsonPT
 			if (text[2].equalsIgnoreCase(text[5]))
 				qtdCertosWatsonPT++;
-			else
+			else{
 				qtdErrosWatsonPT++;
+				if(text[2].equalsIgnoreCase("positive"))
+					fnWPT++;
+				else
+					fpWPT++;
+			}
 			
 			//WatsonEN
 			if (text[2].equalsIgnoreCase(text[6]))
 				qtdCertosWatsonEN++;
-			else
+			else{
 				qtdErrosWatsonEN++;
+				if(text[2].equalsIgnoreCase("positive"))
+					fnWEN++;
+				else
+					fpWEN++;
+			}
 			
 			//Lexico
 			if (text[2].equalsIgnoreCase(text[7]))
 				qtdCertoLexico++;
-			else
+			else{
 				qtdErrosLexico++;
+				if(text[2].equalsIgnoreCase("positive"))
+					fnLex++;
+				else
+					fpLex++;
+			}
 			
 			//Majority Vote
 			if (text[2].equalsIgnoreCase(text[8]))
 				qtdCertosMajority++;
-			else
+			else{
 				qtdErrosMajority++;
+				if(text[2].equalsIgnoreCase("positive"))
+					fnMaj++;
+				else
+					fpMaj++;
+			}
 			
 			if(text[9].equals("tie"))
 				qtdTie++;
@@ -163,26 +207,39 @@ public class Main {
 		
 		System.out.println("Acertos Core: " + qtdCertosCore);
 		System.out.println("Erros Core: " + qtdErrosCore);
+		System.out.println("FP Core: "+fpCore);
+		System.out.println("FN Core: "+fnCore);
 		System.out.println((qtdCertosCore * 100) / (qtdCertosCore + qtdErrosCore) + "% de acerto Core\n");
+		
 
 		System.out.println("Acertos Open: " + qtdCertosOpen);
 		System.out.println("Erros Open: " + qtdErrosOpen);
+		System.out.println("FP Open: "+fpOpen);
+		System.out.println("FN Open: "+fnOpen);
 		System.out.println((qtdCertosOpen * 100) / (qtdCertosOpen + qtdErrosOpen) + "% de acerto Open\n");
 		
 		System.out.println("Acertos Watson PT: " + qtdCertosWatsonPT);
 		System.out.println("Erros Watson PT: " + qtdErrosWatsonPT);
+		System.out.println("FP WPT: "+fpWPT);
+		System.out.println("FN WPT: "+fnWPT);
 		System.out.println((qtdCertosWatsonPT * 100) / (qtdCertosWatsonPT + qtdErrosWatsonPT) + "% de acerto Watson PT\n");
 		
 		System.out.println("Acertos Watson EN: " + qtdCertosWatsonEN);
 		System.out.println("Erros Watson EN: " + qtdErrosWatsonEN);
+		System.out.println("FP WEN: "+fpWEN);
+		System.out.println("FN WEN: "+fnWEN);
 		System.out.println((qtdCertosWatsonEN * 100) / (qtdCertosWatsonEN + qtdErrosWatsonEN) + "% de acerto Watson EN\n");		
 		
 		System.out.println("Acertos Lexico: " + qtdCertoLexico);
 		System.out.println("Erros Lexico: " + qtdErrosLexico);
+		System.out.println("FP Lex: "+fpLex);
+		System.out.println("FN Lex: "+fnLex);
 		System.out.println((qtdCertoLexico * 100) / (qtdCertoLexico + qtdErrosLexico) + "% de acerto Lexico\n");	
 		
-		System.out.println("Acertos Lexico: " + qtdCertosMajority);
-		System.out.println("Erros Lexico: " + qtdErrosMajority);
+		System.out.println("Acertos Majoritario: " + qtdCertosMajority);
+		System.out.println("Erros Majoritario: " + qtdErrosMajority);
+		System.out.println("FP Maj: "+fpMaj);
+		System.out.println("FN Maj: "+fnMaj);
 		System.out.println("Quantidade empates: "+qtdTie);
 		System.out.println((qtdCertosMajority * 100) / (qtdCertosMajority + qtdErrosMajority) + "% de acerto Majority\n");
 	}
@@ -198,8 +255,10 @@ public class Main {
 		
 		TweetTraduzido tt;
 		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
-		
+		int cont = 1;
 		while ((line = br.readLine()) != null) {
+			if(cont >= 3424)
+				break;
 			String[] text = line.split(cvsSplitBy);
 			tt = new TweetTraduzido();
 			tt.setPt(text[0]);
@@ -230,11 +289,13 @@ public class Main {
 			
 			tweetsTraduzidos.add(tt);
 			
+			System.out.println("QTD: "+cont++);
+			
 			qtdPositive = 0;
 			qtdNeutral = 0;
 			qtdNegative = 0;
 		}		
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("bases/classyfied_base_majority_vote", tweetsTraduzidos);
 		print.start();
 		br.close();
 		System.out.println("Arquivo impresso!");
@@ -270,7 +331,7 @@ public class Main {
 
 			tweetsTraduzidos.add(tt);
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("bases/classyfied_base_lexico", tweetsTraduzidos);
 		print.start();
 		br.close();
 		
@@ -308,7 +369,7 @@ public class Main {
 
 	
 
-	public static void watsonClassify(String file, boolean pt) throws IOException {
+	public static void watsonClassify(String file, boolean pt) {
 		NaturalLanguageUnderstanding service = new NaturalLanguageUnderstanding(
 				NaturalLanguageUnderstanding.VERSION_DATE_2017_02_27, "a347ecc2-54eb-4739-86b6-a045ae281fda",
 				"W3o4I7htiZsa");
@@ -319,36 +380,49 @@ public class Main {
 
 		ArrayList<TweetTraduzido> tweetsTraduzidos = new ArrayList<>();
 		TweetTraduzido tt;
-		BufferedReader br = new BufferedReader(new FileReader(file));
-		String line = "";
-		String cvsSplitBy = ";";
-		int index = 1;
-		if(pt)
-			index = 0;
-		while ((line = br.readLine()) != null) {
-			String[] text = line.split(cvsSplitBy);
-			AnalyzeOptions parameters = new AnalyzeOptions.Builder().text(text[index]).features(features).build();
-			AnalysisResults response = service.analyze(parameters).execute();
-			
-			tt = new TweetTraduzido();
-			tt.setPt(text[0]);
-			// tt.setEnGoogle(text[1]);
-			if (response.getSentiment().getDocument().getScore() > 0) {
-				System.out.println(" POSITIVE ");
-				tt.setClassifiedGoogle("positive");
-			} else if (response.getSentiment().getDocument().getScore() < 0) {
-				System.out.println(" NEGATIVE ");
-				tt.setClassifiedGoogle("negative");
-			} else {
-				System.out.println(" NEUTRAL ");
-				tt.setClassifiedGoogle("neutral");
+		String nameFile = "classyfied_base_watson_en";
+		
+		try{
+			BufferedReader br = new BufferedReader(new FileReader(file));
+			String line = "";
+			String cvsSplitBy = ";";
+			int cont = 1;
+			int index = 1;
+			if(pt){
+				index = 0;
+				nameFile = "classyfied_base_watson_pt";
 			}
-
-			tweetsTraduzidos.add(tt);
+			while ((line = br.readLine()) != null) {
+				String[] text = line.split(cvsSplitBy);
+				AnalyzeOptions parameters = new AnalyzeOptions.Builder().text(text[index]).features(features).build();
+				AnalysisResults response = service.analyze(parameters).execute();
+				
+				tt = new TweetTraduzido();
+				tt.setPt(text[0]);
+				// tt.setEnGoogle(text[1]);
+				if (response.getSentiment().getDocument().getScore() > 0) {
+					System.out.println(" POSITIVE ");
+					tt.setClassifiedGoogle("positive");
+				} else if (response.getSentiment().getDocument().getScore() < 0) {
+					System.out.println(" NEGATIVE ");
+					tt.setClassifiedGoogle("negative");
+				} else {
+					System.out.println(" NEUTRAL ");
+					tt.setClassifiedGoogle("neutral");
+				}
+	
+				tweetsTraduzidos.add(tt);
+				System.out.println("QTD: "+cont++);
+			}
+			ImprimeArquivo print = new ImprimeArquivo(nameFile, tweetsTraduzidos);
+			print.start();
+			br.close();
+		}catch(Exception ex){
+			ex.printStackTrace();
+			ImprimeArquivo print = new ImprimeArquivo(nameFile, tweetsTraduzidos);
+			print.start();			
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
-		print.start();
-		br.close();
+		
 
 	}
 
@@ -380,7 +454,7 @@ public class Main {
 
 			tweetsTraduzidos.add(tt);
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("bases/classyfied_base_openlp", tweetsTraduzidos);
 		print.start();
 		br.close();
 
@@ -419,7 +493,7 @@ public class Main {
 		props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
 		StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
 		// StanfordCoreNLP pipeline2 = new StanfordCoreNLP(props);
-		ArrayList<String> sentimentsGoogle = new ArrayList<>();
+		ArrayList<String> sentimentsGoogle;
 		// ArrayList<String> sentimentsYandex = new ArrayList<>();
 
 		TweetTraduzido tt;
@@ -429,19 +503,27 @@ public class Main {
 		while ((line = br.readLine()) != null) {
 			String[] text = line.split(cvsSplitBy);
 			//if (qtd % 100 == 0)
-			System.out.println("Processando: " + qtd);
+			
+			sentimentsGoogle = new ArrayList<>();
+			//Annotation document = new Annotation(text[0]);
+			//pipeline.annotate(document);
 
-			Annotation document = new Annotation(text[0]);
-			pipeline.annotate(document);
-
-			List<CoreMap> sentences = document.get(SentencesAnnotation.class);
+			Annotation document = pipeline.process(text[1]);
+			
+			List<CoreMap> sentences = document.get(CoreAnnotations.SentencesAnnotation.class);
 			for (CoreMap sentence : sentences) {
-				Tree tree = sentence.get(SentimentAnnotatedTree.class);
-				int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
-				sentimentsGoogle.add(Util.sentimentParserString(sentiment));
+				Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
+				//int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
+				//sentimentsGoogle.add(Util.sentimentParserString(sentiment));
+				sentimentsGoogle.add(sentence.get(SentimentCoreAnnotations.SentimentClass.class));
+								
+				System.out.println("\t"+sentence.get(SentimentCoreAnnotations.SentimentClass.class));
 
 			}
 			String sentimentAnalyzedGoogle = Util.defineSentiment(sentimentsGoogle);
+						
+			
+			System.out.println("Processando: " + qtd+" Sentimento: "+sentimentAnalyzedGoogle);
 
 			// Annotation document2 = new Annotation(text[2]);
 			// pipeline2.annotate(document2);
@@ -467,7 +549,7 @@ public class Main {
 			tweetsTraduzidos.add(tt);
 			qtd++;
 		}
-		ImprimeArquivo print = new ImprimeArquivo("classyfied_base", tweetsTraduzidos);
+		ImprimeArquivo print = new ImprimeArquivo("classyfied_base_corenlp", tweetsTraduzidos);
 		print.start();
 		br.close();
 	}
@@ -595,9 +677,7 @@ public class Main {
 		}
 	}
 
-	public static void runTwitterOnline() {
-		String busca = "Wine";
-		String lang = "en";
+	public static void runTwitterOnline(String busca, String lang) {
 
 		/*
 		 * String ontologieFilePathCam = "src/data/camera.owl"; String prefixCam

@@ -24,8 +24,8 @@ public class Test {
             //teste.start();
             //Util.imprimeAvaibleTrends();
             Busca busca = new Busca();
-            //busca.buscarPorTrendingTopics("Worldwide", "en");
-            busca.buscarPorAssunto("Pizza", "en");
+            //busca.buscarPorTrendingTopics("Brazil", "pt");
+            busca.buscarPorAssunto("Lula", "pt");
         } catch (Exception ex) {
             Logger.getLogger(Test.class.getName()).log(Level.SEVERE, null, ex);
         }

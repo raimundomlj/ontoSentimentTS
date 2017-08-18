@@ -57,7 +57,7 @@ public class Busca {
     public void buscarPorAssunto(String busca, String lang) throws TwitterException {
         int totalTweets = 0;
         long maxID = -1;
-        Query q = new Query(busca);
+        Query q = new Query(busca + " -filter:retweets -filter:links -filter:replies -filter:images");
         q.setCount(Util.TWEETS_PER_QUERY); // How many tweets, max, to retrieve 
         q.resultType(Query.ResultType.recent); // Get all tweets 
         q.setLang(lang);

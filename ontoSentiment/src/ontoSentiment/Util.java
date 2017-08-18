@@ -126,26 +126,26 @@ public class Util {
     	}
     }
     public static String defineSentiment(ArrayList<String> sentiments){
-    	int pontos = 0;
+    	int qtdNegative = 0;
+    	int qtdNeutral = 0;
+    	int qtdPositive = 0;
+    	
+    	if(sentiments.size() == 2 && !sentiments.get(0).equals(sentiments.get(1)))
+    		return "tie";
     	
     	for(String s : sentiments){
-    		if(s.equals("very-negative"))
-    			pontos = pontos -2;
-    		if(s.equals("negative"))
-    			pontos = pontos -1;
-    		if(s.equals("positive"))
-    			pontos = pontos +1;
-    		if(s.equals("very-positive"))
-    			pontos = pontos +2;
+    		if(s.equals("Negative") || s.equals("Very Negative"))
+    			qtdNegative++;
+    		if(s.equals("Neutral"))
+    			qtdNeutral++;
+    		if(s.equals("Positive") || s.equals("Very Positive"))
+    			qtdPositive++;
     	}
-    	if(pontos < 0){
-    		//System.out.println("     Pontos: "+pontos);
+    	
+    	if(qtdNegative > qtdPositive && qtdNegative > qtdNeutral)
     		return "negative";
-    	}
-    	else if(pontos > 0){
-    		//System.out.println("     Pontos: "+pontos);
-    		return "positive";
-    	}
+    	else if(qtdPositive > qtdNeutral)
+    		return "positive";    	   	
     	else
     		return "neutral";
     }
