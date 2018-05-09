@@ -17,7 +17,7 @@ public class ImprimeArquivo extends Thread{
 	}
 	public void run() {
 		try {
-			FileWriter arquivo = new FileWriter(new File("C:/Users/raimundo.martins/Desktop/"+nome+".csv"));
+			FileWriter arquivo = new FileWriter(new File("C:/Users/Raimundo/Desktop/"+nome+".csv"));
 			//BufferedWriter arquivo = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("C:/Users/Raimundo/Desktop/"+nome+".txt"),"ISO-8859-1"));
 			String print = "";
 			for(TweetTraduzido d : dados){
